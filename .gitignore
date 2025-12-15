@@ -1,0 +1,72 @@
+# .gitignore - Supabase project
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.pnp/
+.pnp.js
+
+# Environment / secrets
+.env
+.env.*
+.env.local
+.env.*.local
+*.secret
+*.key
+*.pem
+
+# Supabase CLI / local artifacts
+.supabase/
+supabase/.local/
+supabase/.db/
+supabase/.cache/
+supabase/.session
+supabase/.temp
+supabase/credentials
+supabase/*.env
+supabase/*.local
+
+# Supabase Edge Functions
+functions/node_modules/
+functions/.env
+functions/dist/
+# If functions are inside supabase/ directory
+supabase/functions/*/node_modules/
+supabase/functions/*/.env
+supabase/functions/*/dist/
+
+# Build / output
+dist/
+build/
+out/
+coverage/
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# Tooling
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker
+docker-compose.override.yml
+.env.docker
+
+# Databases and local files
+*.sqlite
+*.db
+*.sqlite3
+
+# Misc
+.cache/
+*.localhistory
