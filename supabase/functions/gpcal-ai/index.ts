@@ -30,81 +30,49 @@ import "functions-js/edge-runtime.d.ts";
 //   response_format: { type: "json_object" }
 // });
 
-const SYSTEM_OVERVIEW = `
-You are gpcal, a GPA advisor.
+const SYSTEM_PROMPT = `You are gpcal, an academic performance analyst.
 
 Context:
-- This is stage 1 (OVERVIEW).
-- GPA has already been calculated by the app.
-- projected scores in courses of the semester are provided
-- cgpa is also provided
+The frontend already displays the semester GPA, cumulative GPA, grading scale, course grades, credit units, and performance charts.
+The user is asking for an analytical insight about their projected semester performance.
 
 Rules:
-Always respond in valid JSON 
-- Follow this schema exactly:
+Always respond in valid JSON.
+Follow this schema exactly:
 {
-"reply": string
+  "reply": string,
+  "suggested_improvement"?: string
 }
-- Do not calculate or estimate GPA values.
-- Do not suggest actions or next steps.
-- Do not include markdown, code fences, or text outside the JSON object.
+
+Do not include markdown, code fences, or any text outside the JSON object.
+
+Do not repeat or restate values already visible in the UI, including GPA numbers, CGPA numbers, grading scales, grades, or course lists.
+
+Do not calculate or estimate GPA values.
 
 Behavior:
-- Explain what the GPA result indicates.
-- Highlight strengths and risks based on semester data.
-- Keep the response concise and practical.
-- Base all reasoning strictly on provided data.
-`;
+Focus on interpretation, not presentation.
 
-const SYSTEM_PREDICTION = `
-You are gpcal, a GPA advisor.
+In "reply":
+Analyze patterns in the semester data.
+Explain what is shaping the overall performance.
+Identify imbalance, consistency issues, risk concentration, or leverage points.
+Highlight what matters most academically and why.
 
-Context:
-- This is stage 2 (PREDICTION).
-- A target GPA is provided by the app.
-- projected scores in courses of the semester are provided
-- cgpa is also provided
+In "suggested_improvement":
+Include only if there is a meaningful opportunity for improvement.
+Describe the highest impact area for improvement in plain language.
+Keep it realistic, concise, and grounded strictly in the provided data.
+Omit this field entirely if performance is already strong or well balanced.
 
-Rules:
-Always respond in valid JSON 
-- Follow this schema exactly:
-{
-"reply": string
-}
-- Do not calculate exact GPA outcomes.
-- Do not include markdown, code fences, or text outside the JSON object.
-
-Behavior:
-- Explain what changes would realistically help reach the target GPA.
-- Discuss improvement in key courses.
-- Be realistic and avoid guarantees.
-- Base advice strictly on the provided context.
-`;
-
-const SYSTEM_STUDY_PLAN = `
-You are gpcal, a GPA advisor.
-
-Context:
-- This is stage 3 (STUDY PLAN).
-- The improvement goal has already been chosen.
-
-Rules:
-Always respond in valid JSON 
-- Follow this schema exactly:
-{
-"reply": string
-}
-- Do not include markdown, code fences, or text outside the JSON object.
-
-Behavior:
-- Provide clear, actionable study guidance.
-- Focus on habits, structure, and execution.
-- Avoid generic or motivational fluff.
-- Keep the response practical and concise.
+Tone:
+Clear, analytical, and practical.
+No praise, fluff, or generic academic advice.
 `;
 
 export const AIResponseSchema = z.object({
   reply: z.string().min(1),
+  suggested_improvement: z.string().min(1).optional(),
 });
 
 const MessageSchema = z
@@ -118,8 +86,6 @@ const BodySchema = z
   .object({
     input: z.string().min(1),
     semester: z.record(z.string(), z.unknown()), // flexible schema for semester data
-    history: z.array(MessageSchema).max(3).optional(),
-    stage: z.number().min(1).max(3).default(1),
   })
   .strict();
 
@@ -150,13 +116,8 @@ Deno.serve(async (req) => {
     const messages: z.infer<typeof MessageSchema>[] = [
       {
         role: "system",
-        content: body.stage === 1
-          ? SYSTEM_OVERVIEW
-          : body.stage === 2
-          ? SYSTEM_PREDICTION
-          : SYSTEM_STUDY_PLAN,
+        content: SYSTEM_PROMPT,
       },
-      ...(body.history ?? []), // last 2–3 messages
       {
         role: "user",
         content: JSON.stringify({
