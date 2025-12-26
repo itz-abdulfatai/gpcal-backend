@@ -6,29 +6,10 @@
 
 // https://pgftxzgnqsmqoqzmkwrc.supabase.co/functions/v1/gpcal-ai
 
-// import { createClient } from "supabase-js";
 import OpenAI from "OpenAI";
 import { z } from "zod";
 
 import "functions-js/edge-runtime.d.ts";
-
-// const supabase = createClient(
-//   Deno.env.get("SUPABASE_URL")!,
-//   Deno.env.get("SUPABASE_ANON_KEY")!,
-//   // Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-// );
-
-// messages: [
-//   { role: "system", content: "You are a GPA advisor" },
-//   { role: "assistant", content: lastAiMessage },
-//   { role: "user", content: selectedButtonText }
-// ]
-
-// const response = await openai.responses.create({
-//   model: "gpt-4.1-mini",
-//   input: messages,
-//   response_format: { type: "json_object" }
-// });
 
 const SYSTEM_PROMPT = `You are gpcal, an academic performance analyst.
 
@@ -132,33 +113,33 @@ Deno.serve(async (req) => {
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
       input: messages,
+
     }, {
       signal: controller.signal, // for timeout
     });
     clearTimeout(timeout);
-    // response_format: { type: "json_object" }
-
-    // const readableStream = new ReadableStream({
-    //   async start(controller) {
-    //     try {
-    //       for await (const chunk of stream) {
-    //         const text = chunk.choices[0]?.delta.content;
-    //         if (text) controller.enqueue(text);
-    //       }
-
-    //       controller.close();
-    //     } catch (error) {
-    //       console.error("Stream error:", error);
-    //       controller.error("Stream error");
-    //     }
-    //   },
-    // });
 
     const text = response.output_text;
     if (!text) throw new Error("No AI response");
     console.log("Ai response text:", text);
 
-    const aiData = AIResponseSchema.parse(JSON.parse(text));
+    let aiData;
+    try {
+      aiData = AIResponseSchema.parse(JSON.parse(text));
+    } catch  {
+      // fallback: try to fix missing commas with regex (simple hack)
+      const fixedText = text.replace(
+        /"\s+"suggested_improvement"/,
+        '", "suggested_improvement"',
+      );
+      try {
+        
+        aiData = AIResponseSchema.parse(JSON.parse(fixedText));
+      } catch (error) {
+         console.error("Failed to parse AI JSON, returning fallback:", error);
+  aiData = { reply: "Sorry, could not generate insights. Try again." };
+      }
+    }
     return new Response(JSON.stringify(aiData), {
       headers: {
         "Content-Type": "application/json",
