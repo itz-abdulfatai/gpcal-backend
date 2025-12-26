@@ -11,6 +11,10 @@ import { z } from "zod";
 
 import "functions-js/edge-runtime.d.ts";
 
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS = 5;
+
+const ipMap = new Map<string, { count: number; firstRequest: number }>();
 const SYSTEM_PROMPT = `You are gpcal, an academic performance analyst.
 
 Context:
@@ -78,12 +82,36 @@ console.log("Hello from GPcal-ai api!");
 
 Deno.serve(async (req) => {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+    console.log('user ip', ip);
+    
+    
+
+      const now = Date.now();
+    const record = ipMap.get(ip);
+
+    if (record) {
+      if (now - record.firstRequest < RATE_LIMIT_WINDOW) {
+        if (record.count >= MAX_REQUESTS) {
+          return new Response("Too many requests", { status: 429 });
+        } else {
+          record.count++;
+          ipMap.set(ip, record);
+        }
+      } else {
+        // window expired
+        ipMap.set(ip, { count: 1, firstRequest: now });
+      }
+    } else {
+      ipMap.set(ip, { count: 1, firstRequest: now });
+    }
+
     if (req.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 40000);
 
     let body: z.infer<typeof BodySchema>;
     try {
@@ -111,7 +139,7 @@ Deno.serve(async (req) => {
     ];
 
     const response = await openai.responses.create({
-      model: "gpt-5-mini",
+      model: "gpt-4.1-mini",
       input: messages,
 
     }, {
