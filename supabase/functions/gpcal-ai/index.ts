@@ -24,13 +24,11 @@ import "functions-js/edge-runtime.d.ts";
 //   { role: "user", content: selectedButtonText }
 // ]
 
-
 // const response = await openai.responses.create({
 //   model: "gpt-4.1-mini",
 //   input: messages,
 //   response_format: { type: "json_object" }
 // });
-
 
 const SYSTEM_OVERVIEW = `
 You are gpcal, a GPA advisor.
@@ -83,7 +81,6 @@ Behavior:
 - Base advice strictly on the provided context.
 `;
 
-
 const SYSTEM_STUDY_PLAN = `
 You are gpcal, a GPA advisor.
 
@@ -122,7 +119,7 @@ const BodySchema = z
     input: z.string().min(1),
     semester: z.record(z.string(), z.unknown()), // flexible schema for semester data
     history: z.array(MessageSchema).max(3).optional(),
-    stage: z.number().min(1).max(3).default(1)
+    stage: z.number().min(1).max(3).default(1),
   })
   .strict();
 
@@ -151,30 +148,34 @@ Deno.serve(async (req) => {
     }
 
     const messages: z.infer<typeof MessageSchema>[] = [
-  { role: "system", content: body.stage === 1 ? SYSTEM_OVERVIEW: body.stage === 2 ? SYSTEM_PREDICTION: SYSTEM_STUDY_PLAN  },
-  ...(body.history ?? []), // last 2–3 messages
-  {
-    role: "user",
-    content: JSON.stringify({
-      intent: body.input,
-      semester: body.semester,
-      note: 'semester is an object containing term name, semester GPA, cumulative GPA, grading system, and a list of courses with credit units and grade points.'
+      {
+        role: "system",
+        content: body.stage === 1
+          ? SYSTEM_OVERVIEW
+          : body.stage === 2
+          ? SYSTEM_PREDICTION
+          : SYSTEM_STUDY_PLAN,
+      },
+      ...(body.history ?? []), // last 2–3 messages
+      {
+        role: "user",
+        content: JSON.stringify({
+          intent: body.input,
+          semester: body.semester,
+          note:
+            "semester is an object containing term name, semester GPA, cumulative GPA, grading system, and a list of courses with credit units and grade points.",
+        }),
+      },
+    ];
 
-    })
-  }
-];
-
-const response = await openai.responses.create({
-  model: "gpt-4.1-mini",
-  input: messages,
-  
-}
-,{
-  signal: controller.signal, // for timeout
-}
-);
-clearTimeout(timeout);
-// response_format: { type: "json_object" }
+    const response = await openai.responses.create({
+      model: "gpt-4.1-mini",
+      input: messages,
+    }, {
+      signal: controller.signal, // for timeout
+    });
+    clearTimeout(timeout);
+    // response_format: { type: "json_object" }
 
     // const readableStream = new ReadableStream({
     //   async start(controller) {
@@ -197,13 +198,7 @@ clearTimeout(timeout);
     console.log("Ai response text:", text);
 
     const aiData = AIResponseSchema.parse(JSON.parse(text));
-
-    const res = {
-      data: aiData,
-
-    }
-
-    return new Response(JSON.stringify(res), {
+    return new Response(JSON.stringify(aiData), {
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",
