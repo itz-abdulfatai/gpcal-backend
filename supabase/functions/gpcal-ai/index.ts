@@ -31,7 +31,7 @@ Follow this schema exactly:
 
 Do not include markdown, code fences, or any text outside the JSON object.
 
-Do not repeat or restate values already visible in the UI, including GPA numbers, CGPA numbers, grading scales, grades, or course lists.
+Do not repeat or restate values already visible in the UI, including GPA numbers, CGPA numbers, grading scales, or grades.
 
 Do not calculate or estimate GPA values.
 
@@ -93,7 +93,9 @@ Deno.serve(async (req) => {
     if (record) {
       if (now - record.firstRequest < RATE_LIMIT_WINDOW) {
         if (record.count >= MAX_REQUESTS) {
-          return new Response("Too many requests", { status: 429 });
+          return new Response(JSON.stringify({
+            msg: "Too many requests"
+          }), { status: 429 });
         } else {
           record.count++;
           ipMap.set(ip, record);
@@ -107,7 +109,9 @@ Deno.serve(async (req) => {
     }
 
     if (req.method !== "POST") {
-      return new Response("Method Not Allowed", { status: 405 });
+      return new Response(JSON.stringify({
+            msg: "Method Not Allowed"
+          }), { status: 405 });
     }
 
     const controller = new AbortController();
@@ -119,7 +123,9 @@ Deno.serve(async (req) => {
       body = BodySchema.parse(reqJson);
     } catch (error) {
       console.error("Invalid request body:", error);
-      return new Response("Invalid request body", { status: 400 });
+      return new Response(JSON.stringify({
+            msg: "Invalid request body"
+          }), { status: 400 });
     }
 
     const messages: z.infer<typeof MessageSchema>[] = [
@@ -177,7 +183,9 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.log("Ai request error:", error);
 
-    return new Response("Ai request failed", { status: 500 });
+    return new Response(JSON.stringify({
+            msg:"Ai request failed"
+          }), { status: 500 });
   }
 });
 
